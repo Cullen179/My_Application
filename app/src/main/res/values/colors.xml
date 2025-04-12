@@ -7,4 +7,17 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Sign In Screen Colors -->
+    <color name="dark_background">#1C1E2D</color>
+    <color name="text_light_gray">#B5B5C9</color>
+    <color name="text_hint">#6A6A6A</color>
+    <color name="primary_blue">#2C6BED</color>
+    
+    <!-- Deepfake Detection Colors -->
+    <color name="card_background">#222232</color>
+    <color name="fake_indicator">#FF4444</color>
+    <color name="real_indicator">#44FF44</color>
+    <color name="upload_button">#6750A4</color>
+    <color name="track_color">#333344</color>
 </resources>
