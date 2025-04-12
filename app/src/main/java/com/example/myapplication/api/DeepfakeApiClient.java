@@ -26,8 +26,9 @@ import java.util.Map;
 
 public class DeepfakeApiClient {
     private static final String TAG = "DeepfakeApiClient";
-    private static final String BASE_URL = "http://127.0.0.1:8000"; // For emulator to access localhost
-    // private static final String BASE_URL = "http://10.0.2.2:8000"; // For emulator to access localhost
+    // Use 10.0.2.2 which is the special IP to access host machine's localhost from the emulator
+    private static final String BASE_URL = "http://10.0.2.2:8000"; 
+    // private static final String BASE_URL = "http://127.0.0.1:8000"; // For emulator to access localhost
     private static final int DEFAULT_TIMEOUT = 60000; // 60 seconds for image upload
 
     private final RequestQueue requestQueue;
@@ -54,7 +55,7 @@ public class DeepfakeApiClient {
             // Create a custom volley request to upload the image
             VolleyMultipartRequest multipartRequest = new VolleyMultipartRequest(
                     Request.Method.POST,
-                    BASE_URL + "/deepfake/detect",
+                    BASE_URL + "/api/v1/deepfake/detect",
                     new Response.Listener<NetworkResponse>() {
                         @Override
                         public void onResponse(NetworkResponse response) {
