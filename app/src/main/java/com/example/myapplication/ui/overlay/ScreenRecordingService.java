@@ -8,32 +8,42 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
-import android.media.MediaRecorder;
+import android.media.Image;
+import android.media.ImageReader;
 import android.media.MediaScannerConnection;
+import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Surface;
 import android.view.WindowManager;
 
 import androidx.core.app.NotificationCompat;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.nio.ByteBuffer;
 
 public class ScreenRecordingService extends Service {
     public static final int SCREEN_RECORD_REQUEST_CODE = 1001;
     private static final String TAG = "ScreenRecordingService";
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "screen_recording_channel";
+    private static final int SCREENSHOT_INTERVAL = 3000; // 3 seconds
 
     // Add static fields to store permission data
     static int sResultCode = Activity.RESULT_CANCELED;
@@ -42,19 +52,21 @@ public class ScreenRecordingService extends Service {
     private MediaProjectionManager mProjectionManager;
     private MediaProjection mMediaProjection;
     private VirtualDisplay mVirtualDisplay;
-    private MediaRecorder mMediaRecorder;
     private int mScreenDensity;
     private int mScreenWidth;
     private int mScreenHeight;
     private String mOutputPath;
-    private boolean mIsRecording = false;
+    private boolean mIsCapturing = false;
+    private Handler mHandler;
+    private Runnable mScreenshotRunnable;
+    private ImageReader mImageReader;
 
     // Add MediaProjection callback
     private final MediaProjection.Callback mMediaProjectionCallback = new MediaProjection.Callback() {
         @Override
         public void onStop() {
-            if (mIsRecording) {
-                stopRecording();
+            if (mIsCapturing) {
+                stopCapturing();
             }
             mMediaProjection = null;
         }
@@ -64,6 +76,7 @@ public class ScreenRecordingService extends Service {
     public void onCreate() {
         super.onCreate();
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        mHandler = new Handler(Looper.getMainLooper());
 
         DisplayMetrics metrics = new DisplayMetrics();
         WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -74,7 +87,7 @@ public class ScreenRecordingService extends Service {
 
         // Create output directory if it doesn't exist
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_MOVIES), "ScreenRecordings");
+                Environment.DIRECTORY_PICTURES), "CallScreenshots");
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
                 Log.d(TAG, "Failed to create directory");
@@ -83,7 +96,7 @@ public class ScreenRecordingService extends Service {
 
         // Create output file name
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-        mOutputPath = mediaStorageDir.getPath() + File.separator + "SCR_" + timestamp + ".mp4";
+        mOutputPath = mediaStorageDir.getPath() + File.separator + "SCR_" + timestamp + ".jpg";
     }
 
     @Override
@@ -107,37 +120,27 @@ public class ScreenRecordingService extends Service {
             
             // Use stored permission data if available
             if (sResultCode == Activity.RESULT_OK && sData != null) {
-                System.out.println("Starting recording with stored permission data");
-                startRecording(sResultCode, sData);
+                System.out.println("Starting capturing with stored permission data");
+                startCapturing(sResultCode, sData);
             } else {
-                System.out.println("Cannot start recording - missing valid permission data");
+                System.out.println("Cannot start capturing - missing valid permission data");
             }
         } else if ("STOP_RECORDING".equals(action)) {
             System.out.println("Processing STOP_RECORDING command");
-            stopRecording();
+            stopCapturing();
         }
         return START_STICKY;
     }
 
-    private void startRecording(int resultCode, Intent data) {
-        if (mIsRecording) {
+    private void startCapturing(int resultCode, Intent data) {
+        if (mIsCapturing) {
             return;
         }
 
-        System.out.println("is recording");
+        Log.d(TAG, "Starting screenshot capture");
         // Create foreground notification
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
-
-        initRecorder();
-
-        try {
-            mMediaRecorder.prepare();
-        } catch (IOException e) {
-            Log.e(TAG, "MediaRecorder prepare failed", e);
-            releaseRecorder();
-            return;
-        }
 
         // Create media projection
         mMediaProjection = mProjectionManager.getMediaProjection(resultCode, data);
@@ -149,82 +152,115 @@ public class ScreenRecordingService extends Service {
         // Register the callback
         mMediaProjection.registerCallback(mMediaProjectionCallback, null);
 
+        // Create ImageReader
+        mImageReader = ImageReader.newInstance(mScreenWidth, mScreenHeight, 
+                PixelFormat.RGBA_8888, 2);
+
         // Create virtual display
         mVirtualDisplay = mMediaProjection.createVirtualDisplay(
-                "ScreenRecording",
+                "ScreenCapture",
                 mScreenWidth,
                 mScreenHeight,
                 mScreenDensity,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                mMediaRecorder.getSurface(),
+                mImageReader.getSurface(),
                 null,
                 null
         );
 
-        // Start recording
-        mMediaRecorder.start();
-        mIsRecording = true;
+        mIsCapturing = true;
 
-        Log.d(TAG, "Screen recording started");
+        // Start periodic screenshot capture
+        mScreenshotRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mIsCapturing) {
+                    takeScreenshot();
+                    mHandler.postDelayed(this, SCREENSHOT_INTERVAL);
+                }
+            }
+        };
+        mHandler.post(mScreenshotRunnable);
+
+        Log.d(TAG, "Screenshot capture started");
     }
 
-    private void stopRecording() {
-        if (!mIsRecording) {
+    private void takeScreenshot() {
+        try {
+            Image image = mImageReader.acquireLatestImage();
+            if (image == null) {
+                Log.e(TAG, "Failed to acquire image");
+                return;
+            }
+
+            Image.Plane[] planes = image.getPlanes();
+            ByteBuffer buffer = planes[0].getBuffer();
+            int pixelStride = planes[0].getPixelStride();
+            int rowStride = planes[0].getRowStride();
+            int rowPadding = rowStride - pixelStride * mScreenWidth;
+
+            // Create bitmap
+            Bitmap bitmap = Bitmap.createBitmap(mScreenWidth + rowPadding / pixelStride, 
+                    mScreenHeight, Bitmap.Config.ARGB_8888);
+            bitmap.copyPixelsFromBuffer(buffer);
+            image.close();
+
+            // Crop to actual screen size
+            Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, mScreenWidth, mScreenHeight);
+            bitmap.recycle();
+
+            // Save the bitmap to a file
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            String outputPath = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_PICTURES).getPath() + 
+                    File.separator + "CallScreenshots" + 
+                    File.separator + "SCR_" + timestamp + ".jpg";
+            
+            FileOutputStream fos = new FileOutputStream(outputPath);
+            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+            fos.close();
+            croppedBitmap.recycle();
+            
+            // Notify that the screenshot was saved
+            MediaScannerConnection.scanFile(
+                    this,
+                    new String[]{outputPath},
+                    null,
+                    (path, uri) -> {
+                        Log.i(TAG, "Screenshot saved: " + path);
+                    }
+            );
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to take screenshot", e);
+        }
+    }
+
+    private void stopCapturing() {
+        if (!mIsCapturing) {
             return;
         }
 
-        mIsRecording = false;
+        mIsCapturing = false;
 
-        try {
-            mMediaRecorder.stop();
-            mMediaRecorder.reset();
-            Log.d(TAG, "Recording saved to: " + mOutputPath);
-
-            // Notify user that recording is saved
-            MediaScannerConnection.scanFile(
-                    this,
-                    new String[]{mOutputPath},
-                    null,
-                    (path, uri) -> {
-                        Log.i(TAG, "Scanned " + path + " -> uri=" + uri);
-                    }
-            );
-
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to stop recording", e);
-        } finally {
-            releaseRecorder();
-            stopForeground(true);
-            stopSelf();
+        if (mHandler != null && mScreenshotRunnable != null) {
+            mHandler.removeCallbacks(mScreenshotRunnable);
         }
+
+        releaseResources();
+        stopForeground(true);
+        stopSelf();
     }
 
-    private void initRecorder() {
-        mMediaRecorder = new MediaRecorder();
-
-        // Configure MediaRecorder
-        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-
-        // Video settings
-        mMediaRecorder.setVideoSize(mScreenWidth, mScreenHeight);
-        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mMediaRecorder.setVideoEncodingBitRate(5 * 1024 * 1024); // 5 Mbps
-        mMediaRecorder.setVideoFrameRate(30);
-
-        // Audio settings
-        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        mMediaRecorder.setAudioEncodingBitRate(128 * 1024); // 128 kbps
-        mMediaRecorder.setAudioSamplingRate(44100);
-
-        mMediaRecorder.setOutputFile(mOutputPath);
-    }
-
-    private void releaseRecorder() {
+    private void releaseResources() {
         if (mVirtualDisplay != null) {
             mVirtualDisplay.release();
             mVirtualDisplay = null;
+        }
+
+        if (mImageReader != null) {
+            mImageReader.close();
+            mImageReader = null;
         }
 
         if (mMediaProjection != null) {
@@ -232,21 +268,16 @@ public class ScreenRecordingService extends Service {
             mMediaProjection.stop();
             mMediaProjection = null;
         }
-
-        if (mMediaRecorder != null) {
-            mMediaRecorder.release();
-            mMediaRecorder = null;
-        }
     }
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Screen Recording Service",
+                    "Screen Capture Service",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Screen recording service notification");
+            channel.setDescription("Screen capture service notification");
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
@@ -255,18 +286,18 @@ public class ScreenRecordingService extends Service {
 
     private Notification createNotification() {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Screen Recording")
-                .setContentText("Recording in progress...")
+                .setContentTitle("Screen Capture")
+                .setContentText("Taking screenshots...")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setPriority(NotificationCompat.PRIORITY_LOW);
 
-        // Add a stop recording action
+        // Add a stop capture action
         Intent stopIntent = new Intent(this, ScreenRecordingService.class);
         stopIntent.setAction("STOP_RECORDING");
         PendingIntent stopPendingIntent = PendingIntent.getService(
                 this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        builder.addAction(android.R.drawable.ic_media_pause, "Stop Recording", stopPendingIntent);
+        builder.addAction(android.R.drawable.ic_media_pause, "Stop Capture", stopPendingIntent);
 
         return builder.build();
     }
@@ -278,7 +309,7 @@ public class ScreenRecordingService extends Service {
 
     @Override
     public void onDestroy() {
-        stopRecording();
+        stopCapturing();
         super.onDestroy();
     }
 
