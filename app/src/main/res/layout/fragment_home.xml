@@ -4,26 +4,38 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F0D14"
-    android:padding="24dp"
+    android:background="@color/black"
     tools:context=".ui.home.HomeFragment">
 
-    <!-- Title / Logo -->
-
-    <!-- Toggle Switch -->
     <TextView
-        android:id="@+id/app_title"
-        android:layout_width="wrap_content"
+        android:id="@+id/text_home_title"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Xolozy"
-        android:textColor="#C7AFFF"
-        android:textSize="36sp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="16dp"
+        android:text="Deepfake Detection"
+        android:textColor="@color/white"
+        android:textSize="28sp"
         android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/text_home_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:text="Protect yourself from AI-generated fake content"
+        android:textColor="#CCCCCC"
+        android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="60dp"
-        app:layout_constraintTop_toTopOf="parent" />
+ />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/customize_safe_zone"
@@ -93,10 +105,153 @@
         app:layout_constraintTop_toBottomOf="@id/app_title" />
 
 
-    <!-- Status -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_feature_detection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="#222222"
+        app:cardCornerRadius="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_home_subtitle">
 
-    <!-- Subtitle -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
 
-    <!-- Customize Button -->
+            <ImageView
+                android:id="@+id/icon_detection"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_upload_black_24dp"
+                android:tint="@color/white"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/text_feature_detection"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Scan Images"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/icon_detection"
+                app:layout_constraintTop_toTopOf="@+id/icon_detection" />
+
+            <TextView
+                android:id="@+id/text_feature_detection_desc"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="4dp"
+                android:text="Upload images to check if they are real or AI-generated"
+                android:textColor="#AAAAAA"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/icon_detection"
+                app:layout_constraintTop_toBottomOf="@+id/text_feature_detection" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_detection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:theme="@style/Switch.Purple"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/text_feature_detection_desc" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_feature_monitoring"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="#222222"
+        app:cardCornerRadius="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/card_feature_detection">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <ImageView
+                android:id="@+id/icon_monitoring"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_subscription_black_24dp"
+                android:tint="@color/white"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/text_feature_monitoring"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Monitor Content"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/icon_monitoring"
+                app:layout_constraintTop_toTopOf="@+id/icon_monitoring" />
+
+            <TextView
+                android:id="@+id/text_feature_monitoring_desc"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="4dp"
+                android:text="Enable background monitoring of media content"
+                android:textColor="#AAAAAA"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/icon_monitoring"
+                app:layout_constraintTop_toBottomOf="@+id/text_feature_monitoring" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_monitoring"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:theme="@style/Switch.Purple"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/text_feature_monitoring_desc" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <Button
+        android:id="@+id/button_start_scan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="16dp"
+        android:backgroundTint="#6750A4"
+        android:padding="16dp"
+        android:text="Scan New Image"
+        android:textColor="@color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/card_feature_monitoring" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

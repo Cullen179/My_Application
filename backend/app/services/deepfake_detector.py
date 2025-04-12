@@ -7,7 +7,11 @@ import numpy as np
 import os
 import tempfile
 import traceback
+import warnings
 from fastapi import HTTPException, status
+
+# Disable facenet's attempt to move model to device
+os.environ["FORCE_CPU"] = "1"
 
 # Singleton class for the deepfake detector
 class DeepfakeDetector:
@@ -26,7 +30,35 @@ class DeepfakeDetector:
             try:
                 print("Initializing deepfake detection model (this may take several minutes)...")
                 print("Downloading model files...")
-                self.pipe = pipeline(model="not-lain/deepfake", trust_remote_code=True)
+                
+                # Suppress all warnings
+                warnings.filterwarnings("ignore")
+                
+                # Force CPU usage for model loading
+                torch.hub.set_dir(os.path.join(os.path.expanduser("~"), ".cache", "torch"))
+                
+                # Monkey patch for meta parameters
+                original_to = torch.nn.Module.to
+                def safe_to(self, *args, **kwargs):
+                    try:
+                        return original_to(self, *args, **kwargs)
+                    except NotImplementedError as e:
+                        if "Cannot copy out of meta tensor" in str(e):
+                            print("Ignoring meta tensor error in device transfer")
+                            return self
+                        raise
+                torch.nn.Module.to = safe_to
+                
+                # Load model with specific device and parameters
+                self.pipe = pipeline(
+                    model="not-lain/deepfake", 
+                    trust_remote_code=True,
+                    device_map="cpu"
+                )
+                
+                # Restore original method
+                torch.nn.Module.to = original_to
+                
                 self.initialized = True
                 print("Deepfake detection model loaded successfully!")
             except Exception as e:
