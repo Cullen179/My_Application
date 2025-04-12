@@ -29,7 +29,7 @@ public class HomeFragment extends Fragment {
 
 
         final TextView textView = binding.appTitle;
-        final TextView textView = binding.textHomeTitle;
+//        final TextView textView = binding.textHomeTitle;
 
         homeViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
 
