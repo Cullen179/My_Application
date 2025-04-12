@@ -1,11 +1,13 @@
 package com.example.myapplication.ui.dashboard;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Base64;
@@ -13,6 +15,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -49,6 +52,9 @@ public class UploadMediaFragment extends Fragment {
     private static final String TAG = "UploadMediaFragment";
     private static final int REQUEST_STORAGE_PERMISSION = 100;
     private static final int REQUEST_IMAGE_PICK = 200;
+    private static final int REQUEST_CAMERA_PERMISSION = 300;
+    private static final int REQUEST_IMAGE_CAPTURE = 400;
+    private static final int REQUEST_MEDIA_IMAGES_PERMISSION = 500;
 
     // UI components
     private ImageView imagePreview;
@@ -57,7 +63,7 @@ public class UploadMediaFragment extends Fragment {
     private TextView fakePercentageText;
     private TextView realPercentageText;
     private ImageView explanationImageView;
-    private ProgressBar loadingProgress;
+    private FrameLayout loadingOverlay;
     private RecyclerView recentUploadsRecyclerView;
     private TextView classificationResultText;
 
@@ -83,12 +89,15 @@ public class UploadMediaFragment extends Fragment {
         fakePercentageText = root.findViewById(R.id.fakePercentageText);
         realPercentageText = root.findViewById(R.id.realPercentageText);
         explanationImageView = root.findViewById(R.id.explanationImageView);
-        loadingProgress = root.findViewById(R.id.loadingProgress);
+        loadingOverlay = root.findViewById(R.id.loadingOverlay);
         recentUploadsRecyclerView = root.findViewById(R.id.recentUploadsRecyclerView);
         classificationResultText = root.findViewById(R.id.classificationResultText);
         
-        // Initialize upload button
-        root.findViewById(R.id.uploadButton).setOnClickListener(v -> checkPermissionAndPickImage());
+        // Initialize gallery button
+        root.findViewById(R.id.galleryButton).setOnClickListener(v -> checkStoragePermissionAndPickImage());
+        
+        // Initialize camera button
+        root.findViewById(R.id.cameraButton).setOnClickListener(v -> checkCameraPermissionAndTakePhoto());
         
         // Initialize recent uploads recycler view
         recentUploadsAdapter = new RecentUploadsAdapter(recentUploads);
@@ -98,30 +107,80 @@ public class UploadMediaFragment extends Fragment {
         return root;
     }
     
-    private void checkPermissionAndPickImage() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE) 
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(requireActivity(), 
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 
-                    REQUEST_STORAGE_PERMISSION);
+    private void checkStoragePermissionAndPickImage() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ uses READ_MEDIA_IMAGES permission
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_IMAGES) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(requireActivity(), 
+                        new String[]{Manifest.permission.READ_MEDIA_IMAGES}, 
+                        REQUEST_MEDIA_IMAGES_PERMISSION);
+            } else {
+                openGalleryPicker();
+            }
         } else {
-            openImagePicker();
+            // Older Android versions use READ_EXTERNAL_STORAGE
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(requireActivity(), 
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 
+                        REQUEST_STORAGE_PERMISSION);
+            } else {
+                openGalleryPicker();
+            }
         }
     }
     
-    private void openImagePicker() {
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        startActivityForResult(intent, REQUEST_IMAGE_PICK);
+    private void checkCameraPermissionAndTakePhoto() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) 
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), 
+                    new String[]{Manifest.permission.CAMERA}, 
+                    REQUEST_CAMERA_PERMISSION);
+        } else {
+            openCameraCapture();
+        }
+    }
+    
+    private void openGalleryPicker() {
+        // Create intent for picking images from gallery
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        // Set MIME type for images
+        intent.setType("image/*");
+        // Multiple file selection is disabled
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+        
+        try {
+            startActivityForResult(Intent.createChooser(intent, "Select Image"), REQUEST_IMAGE_PICK);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(requireContext(), "No file manager app installed", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void openCameraCapture() {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (intent.resolveActivity(requireActivity().getPackageManager()) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
+        } else {
+            Toast.makeText(requireContext(), "No camera app available", Toast.LENGTH_SHORT).show();
+        }
     }
     
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_STORAGE_PERMISSION) {
+        if (requestCode == REQUEST_STORAGE_PERMISSION || requestCode == REQUEST_MEDIA_IMAGES_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                openImagePicker();
+                openGalleryPicker();
             } else {
                 Toast.makeText(requireContext(), "Storage permission required to select images", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                openCameraCapture();
+            } else {
+                Toast.makeText(requireContext(), "Camera permission required to take photos", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -131,6 +190,15 @@ public class UploadMediaFragment extends Fragment {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_IMAGE_PICK && resultCode == getActivity().RESULT_OK && data != null) {
             Uri selectedImageUri = data.getData();
+            if (selectedImageUri == null) {
+                Toast.makeText(requireContext(), "Failed to get image", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Grant read permission to this URI for our app
+            final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            requireActivity().getContentResolver().takePersistableUriPermission(
+                selectedImageUri, takeFlags);
             
             // Display selected image
             try {
@@ -140,23 +208,54 @@ public class UploadMediaFragment extends Fragment {
                 
                 // Upload image to backend for deepfake detection
                 uploadImageForDeepfakeDetection(selectedImageUri);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 Log.e(TAG, "Error loading image: " + e.getMessage());
                 Toast.makeText(requireContext(), "Error loading image", Toast.LENGTH_SHORT).show();
             }
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == getActivity().RESULT_OK && data != null) {
+            // Get image from camera
+            Bundle extras = data.getExtras();
+            if (extras != null) {
+                Bitmap imageBitmap = (Bitmap) extras.get("data");
+                imagePreview.setImageBitmap(imageBitmap);
+                
+                // Convert bitmap to URI for upload
+                Uri imageUri = getImageUriFromBitmap(imageBitmap);
+                if (imageUri != null) {
+                    uploadImageForDeepfakeDetection(imageUri);
+                } else {
+                    Toast.makeText(requireContext(), "Error processing camera image", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    }
+    
+    private Uri getImageUriFromBitmap(Bitmap bitmap) {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+            String path = MediaStore.Images.Media.insertImage(
+                    requireActivity().getContentResolver(), 
+                    bitmap, 
+                    "DeepfakeDetection_" + System.currentTimeMillis(), 
+                    null);
+            return Uri.parse(path);
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting bitmap to URI: " + e.getMessage());
+            return null;
         }
     }
     
     private void uploadImageForDeepfakeDetection(Uri imageUri) {
         // Show loading state
-        loadingProgress.setVisibility(View.VISIBLE);
+        loadingOverlay.setVisibility(View.VISIBLE);
         resetResults();
         
         // Use the API client to upload and detect deepfake
         apiClient.detectDeepfake(imageUri, new DeepfakeApiClient.DeepfakeDetectionCallback() {
             @Override
             public void onSuccess(JSONObject response) {
-                loadingProgress.setVisibility(View.GONE);
+                loadingOverlay.setVisibility(View.GONE);
                 
                 try {
                     // Extract response data
@@ -178,7 +277,7 @@ public class UploadMediaFragment extends Fragment {
             
             @Override
             public void onError(String errorMessage) {
-                loadingProgress.setVisibility(View.GONE);
+                loadingOverlay.setVisibility(View.GONE);
                 Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show();
             }
         });

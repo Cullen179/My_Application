@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black"
+    android:background="@color/dark_background"
     android:padding="16dp">
 
     <TextView
@@ -23,8 +23,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        app:cardBackgroundColor="#222222"
+        app:cardBackgroundColor="@color/card_background"
         app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/titleTextView">
@@ -59,7 +60,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:text="Fake"
+                android:text="None"
                 android:textColor="#FF4444"
                 android:textSize="24sp"
                 android:textStyle="bold"
@@ -85,18 +86,18 @@
                 android:layout_marginTop="4dp"
                 android:layout_marginEnd="8dp"
                 android:max="100"
-                android:progress="95"
-                app:indicatorColor="#FF4444"
+                android:progress="0"
+                app:indicatorColor="@color/fake_indicator"
                 app:layout_constraintEnd_toStartOf="@+id/fakePercentageText"
                 app:layout_constraintStart_toEndOf="@+id/imagePreview"
                 app:layout_constraintTop_toBottomOf="@+id/fakeLabel"
-                app:trackColor="#333333" />
+                app:trackColor="@color/track_color" />
 
             <TextView
                 android:id="@+id/fakePercentageText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="95%"
+                android:text="0%"
                 android:textColor="@color/white"
                 app:layout_constraintBottom_toBottomOf="@+id/fakeProgressIndicator"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -121,18 +122,18 @@
                 android:layout_marginTop="4dp"
                 android:layout_marginEnd="8dp"
                 android:max="100"
-                android:progress="5"
-                app:indicatorColor="#44FF44"
+                android:progress="0"
+                app:indicatorColor="@color/real_indicator"
                 app:layout_constraintEnd_toStartOf="@+id/realPercentageText"
                 app:layout_constraintStart_toEndOf="@+id/imagePreview"
                 app:layout_constraintTop_toBottomOf="@+id/realLabel"
-                app:trackColor="#333333" />
+                app:trackColor="@color/track_color" />
 
             <TextView
                 android:id="@+id/realPercentageText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="5%"
+                android:text="0%"
                 android:textColor="@color/white"
                 app:layout_constraintBottom_toBottomOf="@+id/realProgressIndicator"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -153,7 +154,7 @@
                 android:layout_width="0dp"
                 android:layout_height="100dp"
                 android:layout_marginTop="8dp"
-                android:background="#333333"
+                android:background="@color/track_color"
                 android:scaleType="fitCenter"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -180,8 +181,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        app:cardBackgroundColor="#222222"
+        app:cardBackgroundColor="@color/card_background"
         app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageCardView">
@@ -195,35 +197,53 @@
                 android:id="@+id/uploadPromptText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Upload your files here"
+                android:text="Choose image source"
                 android:textColor="@color/white"
+                android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <Button
-                android:id="@+id/uploadButton"
-                android:layout_width="wrap_content"
+                android:id="@+id/galleryButton"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="#6750A4"
-                android:text="Browse"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="@color/upload_button"
+                android:text="Photo Library"
                 android:textColor="@color/white"
-                app:layout_constraintEnd_toEndOf="parent"
+                android:drawableLeft="@android:drawable/ic_menu_gallery"
+                app:layout_constraintEnd_toStartOf="@+id/cameraButton"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/uploadPromptText" />
 
-            <ImageView
-                android:id="@+id/uploadIcon"
-                android:layout_width="wrap_content"
+            <Button
+                android:id="@+id/cameraButton"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:src="@android:drawable/ic_menu_upload"
-                android:tint="@color/white"
-                app:layout_constraintBottom_toTopOf="@+id/uploadPromptText"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="@color/upload_button"
+                android:text="Take Photo"
+                android:textColor="@color/white"
+                android:drawableLeft="@android:drawable/ic_menu_camera"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/galleryButton"
+                app:layout_constraintTop_toBottomOf="@+id/uploadPromptText" />
+
+            <TextView
+                android:id="@+id/permissionInfoText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="You'll be asked for access to your photos"
+                android:textColor="@color/text_light_gray"
+                android:textSize="12sp"
+                android:gravity="center"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toBottomOf="@+id/galleryButton" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -239,24 +259,43 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/uploadCardView">
 
-        <TextView
-            android:id="@+id/recentUploadsTitle"
-            android:layout_width="wrap_content"
+        <androidx.cardview.widget.CardView
+            android:id="@+id/recentUploadsCardView"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Recent Uploaded"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/seeAllText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="See All"
-            android:textColor="@color/white"
+            app:cardBackgroundColor="@color/card_background"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp">
+
+                <TextView
+                    android:id="@+id/recentUploadsTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Recent Uploads"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/seeAllText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="See All"
+                    android:textColor="@color/primary_blue"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recentUploadsRecyclerView"
@@ -266,19 +305,37 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/recentUploadsTitle"
+            app:layout_constraintTop_toBottomOf="@+id/recentUploadsCardView"
             tools:listitem="@layout/item_recent_upload" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <ProgressBar
-        android:id="@+id/loadingProgress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#80000000"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ProgressBar
+            android:id="@+id/loadingProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/upload_button" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="48dp"
+            android:text="Analyzing image..."
+            android:textColor="@color/white"
+            android:textSize="16sp" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout> 

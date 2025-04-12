@@ -5,4 +5,4 @@
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
     </domain-config>
-</network-security-config>
+</network-security-config> 

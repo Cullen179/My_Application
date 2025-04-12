@@ -77,8 +77,9 @@ public class ScreenRecordingService extends Service {
     private Handler mHandler;
     private Runnable mScreenshotRunnable;
     private ImageReader mImageReader;
-    private boolean mImageReaderValid = false;  // Add flag to track ImageReader validity
-    private DeepfakeApiClient apiClient;  // Add API client
+    private boolean mImageReaderValid = false;  // Flag to track ImageReader validity
+    private DeepfakeApiClient apiClient;  // API client
+    private DeepfakeResultOverlay mDeepfakeOverlay; // Deepfake result overlay
 
     // Add MediaProjection callback
     private final MediaProjection.Callback mMediaProjectionCallback = new MediaProjection.Callback() {
@@ -97,6 +98,7 @@ public class ScreenRecordingService extends Service {
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mHandler = new Handler(Looper.getMainLooper());
         apiClient = new DeepfakeApiClient(this);  // Pass the Service context
+        mDeepfakeOverlay = new DeepfakeResultOverlay(this); // Initialize the overlay
 
         DisplayMetrics metrics = new DisplayMetrics();
         WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -284,102 +286,104 @@ public class ScreenRecordingService extends Service {
     }
 
     private void uploadImageForDeepfakeDetection(Bitmap bitmap) {
-        new Thread(() -> {
-            try {
-                // Save bitmap to a temporary file
-                File tempFile = new File(getCacheDir(), "temp_screenshot.jpg");
-                FileOutputStream fos = new FileOutputStream(tempFile);
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                fos.close();
-
-                // Create Uri from the temporary file
-                Uri imageUri = Uri.fromFile(tempFile);
-
-                // Create callback for deepfake detection
-                DeepfakeApiClient.DeepfakeDetectionCallback callback = new DeepfakeApiClient.DeepfakeDetectionCallback() {
-                    @Override
-                    public void onSuccess(JSONObject response) {
-                        Intent intent = new Intent(ScreenRecordingService.this, FloatingService.class);
-                        JSONObject confidences = null;
-                        String predictedClass = null;
-                        try {
-                            // Extract response data
-                            confidences = response.getJSONObject("confidences");
-                            predictedClass = response.getString("predicted_class");
-                            String faceWithMaskBase64 = response.optString("face_with_mask_base64", null);
-
-                        } catch (JSONException e) {
-                            Log.e(TAG, "Error parsing response: " + e.getMessage());
+        try {
+            // Save bitmap to a temporary file
+            File outputDir = getExternalCacheDir();
+            File outputFile = File.createTempFile("tmp_", ".jpg", outputDir);
+            
+            FileOutputStream fos = new FileOutputStream(outputFile);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+            fos.close();
+            
+            // Use our API client to upload the image
+            apiClient.detectDeepfake(Uri.fromFile(outputFile), new DeepfakeApiClient.DeepfakeDetectionCallback() {
+                @Override
+                public void onSuccess(JSONObject response) {
+                    try {
+                        Log.d(TAG, "Deepfake detection success: " + response.toString());
+                        
+                        // Extract confidence scores
+                        JSONObject confidences = response.getJSONObject("confidences");
+                        float fakePercentage = 0f;
+                        float realPercentage = 0f;
+                        
+                        if (confidences.has("fake")) {
+                            fakePercentage = (float) (confidences.getDouble("fake") * 100);
                         }
-                        intent.putExtra("fakePercentage", (int) (confidences.optDouble("fake", 0) * 100));
-                        intent.putExtra("realPercentage", (int) (confidences.optDouble("real", 0) * 100));
-                        intent.putExtra("predictedClass", predictedClass.substring(0, 1).toUpperCase() + predictedClass.substring(1));
-                        startService(intent);
-
-                        // Clean up
-                        tempFile.delete();
-                        bitmap.recycle();
+                        
+                        if (confidences.has("real")) {
+                            realPercentage = (float) (confidences.getDouble("real") * 100);
+                        }
+                        
+                        // Update the deepfake result overlay
+                        if (mDeepfakeOverlay != null) {
+                            final float finalFakePercentage = fakePercentage;
+                            final float finalRealPercentage = realPercentage;
+                            mHandler.post(() -> mDeepfakeOverlay.updateResults(finalFakePercentage, finalRealPercentage));
+                            
+                            // Hide the overlay after the call ends or after a timeout
+                            mHandler.postDelayed(() -> {
+                                if (mDeepfakeOverlay != null) {
+                                    mDeepfakeOverlay.hide();
+                                }
+                            }, 30000); // Hide after 30 seconds
+                        }
+                        
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing deepfake response: " + e.getMessage());
                     }
-
-                    @Override
-                    public void onError(String error) {
-                        Log.e(TAG, "Error uploading image for deepfake detection: " + error);
-                        // Clean up
-                        tempFile.delete();
-                        bitmap.recycle();
-                    }
-                };
-
-                // Make API call using DeepfakeApiClient
-                apiClient.detectDeepfake(imageUri, callback);
-
-            } catch (Exception e) {
-                Log.e(TAG, "Error uploading image for deepfake detection", e);
-                // Clean up in case of error
-                bitmap.recycle();
-            }
-        }).start();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Log.e(TAG, "Deepfake detection error: " + error);
+                }
+            });
+            
+        } catch (IOException e) {
+            Log.e(TAG, "Error saving bitmap for deepfake detection: " + e.getMessage());
+        }
     }
 
     private void stopCapturing() {
-        if (mIsCapturing) {
-            mIsCapturing = false;
-            mImageReaderValid = false;  // Invalidate ImageReader first
-            mHandler.removeCallbacks(mScreenshotRunnable);
-            
-            // Clean up ImageReader
-            if (mImageReader != null) {
-                try {
-                    mImageReader.close();
-                } catch (Exception e) {
-                    Log.e(TAG, "Error closing ImageReader", e);
-                }
-                mImageReader = null;
-            }
-            
-            // Clean up virtual display
-            if (mVirtualDisplay != null) {
-                try {
-                    mVirtualDisplay.release();
-                } catch (Exception e) {
-                    Log.e(TAG, "Error releasing VirtualDisplay", e);
-                }
-                mVirtualDisplay = null;
-            }
-            
-            // Clean up media projection
-            if (mMediaProjection != null) {
-                try {
-                    mMediaProjection.stop();
-                } catch (Exception e) {
-                    Log.e(TAG, "Error stopping MediaProjection", e);
-                }
-                mMediaProjection = null;
-            }
-            
-            stopForeground(true);
-            stopSelf();
+        if (!mIsCapturing) {
+            return;
         }
+
+        Log.d(TAG, "Stopping screenshot capture");
+        mIsCapturing = false;
+        mHandler.removeCallbacks(mScreenshotRunnable);
+
+        // Clean up ImageReader
+        if (mImageReader != null) {
+            mImageReaderValid = false;  // Set flag before closing
+            mImageReader.close();
+            mImageReader = null;
+        }
+
+        // Clean up VirtualDisplay
+        if (mVirtualDisplay != null) {
+            mVirtualDisplay.release();
+            mVirtualDisplay = null;
+        }
+
+        // Clean up MediaProjection
+        if (mMediaProjection != null) {
+            mMediaProjection.unregisterCallback(mMediaProjectionCallback);
+            mMediaProjection.stop();
+            mMediaProjection = null;
+        }
+        
+        // Hide deepfake overlay
+        if (mDeepfakeOverlay != null) {
+            mDeepfakeOverlay.hide();
+        }
+
+        // Stop foreground service
+        stopForeground(true);
+        stopSelf();
+
+        Log.d(TAG, "Screenshot capture stopped");
     }
 
     private void createNotificationChannel() {
@@ -421,8 +425,16 @@ public class ScreenRecordingService extends Service {
 
     @Override
     public void onDestroy() {
-        stopCapturing();
         super.onDestroy();
+        if (mIsCapturing) {
+            stopCapturing();
+        }
+        
+        // Ensure overlay is hidden when service is destroyed
+        if (mDeepfakeOverlay != null) {
+            mDeepfakeOverlay.hide();
+            mDeepfakeOverlay = null;
+        }
     }
 
     // Add method to request screen recording permission
