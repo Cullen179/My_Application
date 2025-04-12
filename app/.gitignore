@@ -1,1 +1,80 @@
+# Built files
 /build
+/app/build
+/captures/
+/*.apk
+/*.ap_
+
+# Local configuration file (sdk path etc)
+local.properties
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+*.sublime-workspace
+*.sublime-project
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Gradle files
+.gradle/
+**/build/
+!gradle-wrapper.jar
+gradle-app.setting
+
+# Log files
+*.log
+
+# Keystore files
+*.jks
+*.keystore
+
+# Caches
+.cache/
+.navigation/
+.cxx/
+
+# Android profiling files
+*.hprof
+
+# Crashlytics/Firebase
+fabric.properties
+crashlytics-build.properties
+
+# APKs
+*.apk
+*.apks
+*.aab
+
+# Misc
+gen/
+bin/
+*.swp
+*.orig
+
+# Jetpack Compose preview caches (if used)
+.idea/**/uiDesigner.xml
+.idea/**/render.experimental.xml
+
+# Kotlin
+*.kotlin_module
+
+# Coverage reports
+coverage/
+*.ec
+
+# Test results
+test-results/
+test-output/
+
+# IntelliJ
+out/
+
+# Local sensitive configurations
+secrets.properties
+.env

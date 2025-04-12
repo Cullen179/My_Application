@@ -35,7 +35,7 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.window)
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)
