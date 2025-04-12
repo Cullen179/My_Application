@@ -4,31 +4,101 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#0F0D14"
+    android:padding="24dp"
     tools:context=".ui.home.HomeFragment">
 
-    <TextView
-        android:id="@+id/text_home"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:textAlignment="center"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <!-- Title / Logo -->
 
-    <Switch
-        android:id="@+id/switch1"
+    <!-- Toggle Switch -->
+    <TextView
+        android:id="@+id/app_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Switch"
-        app:layout_constraintBottom_toTopOf="@+id/text_home"
+        android:layout_marginTop="180dp"
+        android:text="Xolozy"
+        android:textColor="#C7AFFF"
+        android:textSize="36sp"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.404" />
+        app:layout_constraintTop_margin="60dp"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/customize_safe_zone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="220dp"
+        android:minHeight="60dp"
+        android:text="Customize Safe Zone ➜"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        app:backgroundTint="@android:color/transparent"
+        app:strokeColor="#FFFFFF"
+        app:strokeWidth="2dp"
+        app:cornerRadius="30dp"
+        app:rippleColor="@color/purple_200"
+        app:iconPadding="8dp"
+        app:layout_constraintTop_toBottomOf="@id/detection_info"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="24dp" />
+
+    <TextView
+        android:id="@+id/detection_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="The detection will be automatically\ntriggered whenever a call/ video is made"
+        android:textAlignment="center"
+        android:textColor="#AAAAAA"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.49"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_margin="12dp"
+        app:layout_constraintTop_toBottomOf="@id/record_status" />
+
+    <TextView
+        android:id="@+id/record_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Connected"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_margin="16dp"
+        app:layout_constraintTop_toBottomOf="@id/record_toggle" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/record_toggle"
+        android:layout_width="120dp"
+        android:layout_height="64dp"
+        android:text=""
+        android:thumbTint="@color/white"
+        android:trackTint="@color/white"
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        app:layout_constraintTop_toBottomOf="@id/app_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="32dp"/>
+
+
+    <!-- Status -->
+
+    <!-- Subtitle -->
+
+    <!-- Customize Button -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
