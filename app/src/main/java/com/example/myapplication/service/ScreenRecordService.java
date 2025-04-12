@@ -4,13 +4,13 @@ import android.app.Notification;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
-import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
+import android.media.MediaMuxer;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
@@ -18,16 +18,14 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Log;
-import android.util.Pair;
 import android.view.Surface;
 
 import androidx.annotation.Nullable;
-import androidx.window.layout.WindowMetrics;
-import androidx.window.layout.WindowMetricsCalculator;
 
 import com.example.myapplication.model.ScreenRecordConfig;
 import com.example.myapplication.util.NotificationHelper;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -54,6 +52,12 @@ public class ScreenRecordService extends Service {
     private Handler codecHandler;
 
     private boolean isRecording = false;
+
+    private MediaMuxer mediaMuxer;
+    private int videoTrackIndex = -1;
+    private boolean muxerStarted = false;
+
+    private File outputFile;
 
     @Override
     public void onCreate() {
@@ -94,10 +98,14 @@ public class ScreenRecordService extends Service {
     private void startScreenCapture(ScreenRecordConfig config) {
         try {
             mediaProjection = mediaProjectionManager.getMediaProjection(config.getResultCode(), config.getData());
+
+            outputFile = new File(getExternalFilesDir(null), "test_recorded.mp4");
+
             setupMediaCodec();
             setupVirtualDisplay();
             startReadingOutputBuffers();
             isRecording = true;
+
         } catch (Exception e) {
             Log.e("ScreenRecordService", "Failed to start screen capture", e);
         }
@@ -114,6 +122,8 @@ public class ScreenRecordService extends Service {
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         inputSurface = mediaCodec.createInputSurface();
         mediaCodec.start();
+
+        mediaMuxer = new MediaMuxer(outputFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
     }
 
     private void setupVirtualDisplay() {
@@ -139,53 +149,50 @@ public class ScreenRecordService extends Service {
 
             while (isRecording) {
                 int outputBufferId = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
-                if (outputBufferId >= 0) {
+                if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    if (muxerStarted) continue;
+                    MediaFormat newFormat = mediaCodec.getOutputFormat();
+                    videoTrackIndex = mediaMuxer.addTrack(newFormat);
+                    mediaMuxer.start();
+                    muxerStarted = true;
+                } else if (outputBufferId >= 0) {
                     ByteBuffer encodedData = mediaCodec.getOutputBuffer(outputBufferId);
 
-                    if (encodedData != null && bufferInfo.size > 0) {
+                    if (encodedData != null && bufferInfo.size > 0 && muxerStarted) {
                         encodedData.position(bufferInfo.offset);
                         encodedData.limit(bufferInfo.offset + bufferInfo.size);
-
-                        // ✅ Send this to your model
-                        byte[] data = new byte[bufferInfo.size];
-                        encodedData.get(data);
-                        runModelInference(data);
+                        mediaMuxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo);
                     }
 
                     mediaCodec.releaseOutputBuffer(outputBufferId, false);
                 }
             }
-        });
-    }
 
-    private void runModelInference(byte[] frameData) {
-        // 🔍 Replace this with your AI inference logic
-        Log.d("Model", "Received frame of size: " + frameData.length);
+            releaseResources();
+        });
     }
 
     private void stopScreenCapture() {
         isRecording = false;
+    }
 
-        if (codecHandler != null) {
-            codecHandler.post(() -> {
-                try {
-                    if (mediaCodec != null) {
-                        mediaCodec.stop();
-                        mediaCodec.release();
-                    }
-                    if (inputSurface != null) {
-                        inputSurface.release();
-                    }
-                    if (virtualDisplay != null) {
-                        virtualDisplay.release();
-                    }
-                    if (mediaProjection != null) {
-                        mediaProjection.stop();
-                    }
-                } catch (Exception e) {
-                    Log.e("ScreenRecordService", "Failed to stop screen capture", e);
-                }
-            });
+    private void releaseResources() {
+        try {
+            if (mediaCodec != null) {
+                mediaCodec.stop();
+                mediaCodec.release();
+            }
+            if (inputSurface != null) inputSurface.release();
+            if (virtualDisplay != null) virtualDisplay.release();
+            if (mediaProjection != null) mediaProjection.stop();
+
+            if (muxerStarted && mediaMuxer != null) {
+                mediaMuxer.stop();
+                mediaMuxer.release();
+            }
+
+        } catch (Exception e) {
+            Log.e("ScreenRecordService", "releaseResources: ", e);
         }
 
         if (codecThread != null) {
