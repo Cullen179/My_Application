@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/card_background">
+
+    <TextView
+        android:id="@+id/planName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Premium"
+        android:textColor="#C7AFFF"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/featuresLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp">
+        <!-- Dynamically add feature TextViews -->
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/trialInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1 month free trial for new users"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/monthlyButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Monthly Plan\n$3.13/month"
+        android:textAlignment="center"
+        style="@style/Widget.Xolozy.Button.Outlined" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/annualButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Annual Plan\n$31.28/year"
+        android:textAlignment="center"
+        style="@style/Widget.Xolozy.Button.Filled"
+        android:layout_marginTop="8dp"/>
+</LinearLayout>
