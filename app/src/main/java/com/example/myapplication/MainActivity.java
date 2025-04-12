@@ -1,6 +1,7 @@
 package com.example.myapplication;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -20,12 +21,14 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.myapplication.databinding.ActivityMainBinding;
 import com.example.myapplication.ui.overlay.FloatingService;
+import com.example.myapplication.ui.overlay.ScreenRecordingService;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_OVERLAY = 1234;
     private static final int REQUEST_CODE_PHONE_STATE = 5678;
     private static final int REQUEST_CODE_RECORDING = 1001;
+    private static final int REQUEST_CODE_SCREEN_RECORD = 1002;
     private static final int REQUEST_STORAGE_PERMISSION = 2000;
     private static final String PREFS_NAME = "AppPrefs";
     private static final String KEY_PERMISSION_ASKED = "permission_asked";
@@ -91,14 +94,34 @@ public class MainActivity extends AppCompatActivity {
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.RECORD_AUDIO},
                         REQUEST_CODE_RECORDING);
+            } else {
+                // If audio permission is granted, request screen recording permission
+                requestScreenRecordingPermission();
             }
         }
     }
 
+    /**
+     * Request screen recording permission using MediaProjection
+     */
+    private void requestScreenRecordingPermission() {
+        ScreenRecordingService.requestScreenRecordingPermission(this);
+    }
+
     private void requestStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+: Use new permission
+            if (checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_MEDIA_VIDEO},
+                        REQUEST_STORAGE_PERMISSION);
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 6-12: Legacy storage permission
             if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        REQUEST_STORAGE_PERMISSION);
             }
         }
     }
@@ -147,6 +170,13 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_CODE_OVERLAY) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
                 startFloatingService();
+            }
+        } else if (requestCode == ScreenRecordingService.SCREEN_RECORD_REQUEST_CODE) {
+            ScreenRecordingService.handlePermissionResult(resultCode, data);
+            if (resultCode == Activity.RESULT_OK) {
+                Toast.makeText(this, "Screen recording permission granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Screen recording permission denied", Toast.LENGTH_SHORT).show();
             }
         }
     }
