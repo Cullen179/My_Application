@@ -2,18 +2,7 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/.idea/compiler.xml
-/.idea/deploymentTargetDropDown.xml
-/.idea/gradle.xml
-/.idea/jarRepositories.xml
-/.idea/misc.xml
-/.idea/vcs.xml
+/.idea/
 .DS_Store
 /build
 /captures
@@ -23,44 +12,24 @@ local.properties
 /app/build/
 /app/release/
 
+# Python/Backend specific
+__pycache__/
+*.py[cod]
+backend/.env
+backend/.venv/
+backend/venv/
+backend/uploads/
+backend/firebase-credentials.json
+
+# Large files and dependencies
+*.so
+*.dylib
+
 # Gradle
 .gradle/
 gradle-app.setting
 **/build/
 !src/**/build/
-
-# Python/Backend specific
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-backend/build/
-backend/develop-eggs/
-backend/dist/
-backend/downloads/
-backend/eggs/
-backend/.eggs/
-backend/lib/
-backend/lib64/
-backend/parts/
-backend/sdist/
-backend/var/
-backend/wheels/
-backend/*.egg-info/
-backend/.installed.cfg
-backend/*.egg
-backend/MANIFEST
-backend/.env
-backend/.venv
-backend/env/
-backend/.venv/
-backend/venv/
-backend/ENV/
-backend/env.bak/
-backend/venv.bak/
-backend/uploads/
-backend/firebase-credentials.json
 
 # Environment files
 .env
