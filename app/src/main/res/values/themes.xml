@@ -13,4 +13,46 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+
+    <!-- Feature Text Style -->
+    <style name="FeatureItem">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:layout_marginBottom">4dp</item>
+    </style>
+
+    <!-- Table Header -->
+    <style name="PlanHeader">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:padding">8dp</item>
+    </style>
+
+    <!-- Table Feature Text -->
+    <style name="PlanFeature">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:padding">8dp</item>
+    </style>
+
+    <!-- Checkmark Cell -->
+    <style name="CheckCell">
+        <item name="android:text">✓</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">#C7AFFF</item>
+        <item name="android:padding">8dp</item>
+    </style>
+
+    <!-- Subscription Button Styles -->
+    <style name="Widget.Xolozy.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">16dp</item>
+        <item name="strokeColor">#FFFFFF</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <style name="Widget.Xolozy.Button.Filled" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">16dp</item>
+        <item name="backgroundTint">#C7AFFF</item>
+        <item name="android:textColor">#000000</item>
+    </style>
 </resources>
