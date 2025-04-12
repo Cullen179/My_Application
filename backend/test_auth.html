@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Auth Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .auth-section, .api-section {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button, input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        input[type="email"], input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .hidden {
+            display: none;
+        }
+        .token-box {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            word-break: break-all;
+        }
+        .token-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Firebase Authentication Test</h1>
+    
+    <div class="container">
+        <div class="auth-section">
+            <h2>Authentication</h2>
+            
+            <div id="auth-forms">
+                <div class="form-group">
+                    <button id="btn-register-form">Show Register Form</button>
+                    <button id="btn-login-form">Show Login Form</button>
+                </div>
+
+                <form id="register-form" class="hidden">
+                    <h3>Register</h3>
+                    <div class="form-group">
+                        <label for="register-email">Email:</label>
+                        <input type="email" id="register-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password:</label>
+                        <input type="password" id="register-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-name">Full Name:</label>
+                        <input type="text" id="register-name">
+                    </div>
+                    <button type="submit">Register</button>
+                </form>
+
+                <form id="login-form" class="hidden">
+                    <h3>Login</h3>
+                    <div class="form-group">
+                        <label for="login-email">Email:</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password:</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+
+            <div id="auth-status" class="hidden">
+                <h3>Logged in as: <span id="user-email"></span></h3>
+                <button id="btn-logout">Logout</button>
+            </div>
+
+            <div id="token-container" class="hidden">
+                <div class="token-box">
+                    <span class="token-label">Your Firebase ID Token:</span>
+                    <div id="id-token"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h2>Test API Endpoints</h2>
+            
+            <div class="form-group">
+                <button id="btn-verify-token">Verify Token</button>
+                <button id="btn-get-me">Get Me</button>
+                <button id="btn-protected">Access Protected</button>
+            </div>
+            
+            <h3>Response:</h3>
+            <pre id="api-response">No response yet.</pre>
+        </div>
+    </div>
+
+    <!-- Include Firebase SDK -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js';
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged 
+        } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js';
+
+        // Your Firebase configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyDMPWkoF_8mXK06oZq3UY67y3YAoltZy7E",
+            authDomain: "xololzy.firebaseapp.com",
+            projectId: "xololzy",
+            storageBucket: "xololzy.appspot.com",
+            messagingSenderId: "495484658842",
+            appId: "1:495484658842:android:2de90a7113a7b61a28eb23"
+        };
+
+        // API URL - Update this to your backend URL
+        const apiUrl = 'http://localhost:8000/api/v1';
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        let currentIdToken = null;
+
+        // DOM elements
+        const registerForm = document.getElementById('register-form');
+        const loginForm = document.getElementById('login-form');
+        const authStatus = document.getElementById('auth-status');
+        const userEmail = document.getElementById('user-email');
+        const idTokenEl = document.getElementById('id-token');
+        const tokenContainer = document.getElementById('token-container');
+        const apiResponse = document.getElementById('api-response');
+        const authForms = document.getElementById('auth-forms');
+
+        // Buttons
+        const btnRegisterForm = document.getElementById('btn-register-form');
+        const btnLoginForm = document.getElementById('btn-login-form');
+        const btnLogout = document.getElementById('btn-logout');
+        const btnVerifyToken = document.getElementById('btn-verify-token');
+        const btnGetMe = document.getElementById('btn-get-me');
+        const btnProtected = document.getElementById('btn-protected');
+
+        // Show/hide forms
+        btnRegisterForm.addEventListener('click', () => {
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        });
+
+        btnLoginForm.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        });
+
+        // Register form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const fullName = document.getElementById('register-name').value;
+
+            try {
+                // First register with Firebase
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Then register with our backend
+                const response = await fetch(`${apiUrl}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        full_name: fullName
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Backend registration failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+                
+                // Update UI
+                registerForm.reset();
+                updateAuthState(user);
+            } catch (error) {
+                console.error("Registration error:", error);
+                apiResponse.textContent = `Registration error: ${error.message}`;
+            }
+        });
+
+        // Login form submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Get the ID token
+                currentIdToken = await user.getIdToken();
+                
+                // Update UI
+                loginForm.reset();
+                updateAuthState(user);
+                
+                apiResponse.textContent = "Login successful!";
+            } catch (error) {
+                console.error("Login error:", error);
+                apiResponse.textContent = `Login error: ${error.message}`;
+            }
+        });
+
+        // Logout
+        btnLogout.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                currentIdToken = null;
+                apiResponse.textContent = "Logged out successfully.";
+            } catch (error) {
+                console.error("Logout error:", error);
+                apiResponse.textContent = `Logout error: ${error.message}`;
+            }
+        });
+
+        // Verify Token
+        btnVerifyToken.addEventListener('click', async () => {
+            if (!currentIdToken) {
+                apiResponse.textContent = "No token available. Please login first.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/auth/verify-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id_token: currentIdToken
+                    })
+                });
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error("Verify token error:", error);
+                apiResponse.textContent = `Verify token error: ${error.message}`;
+            }
+        });
+
+        // Get Me
+        btnGetMe.addEventListener('click', async () => {
+            if (!currentIdToken) {
+                apiResponse.textContent = "No token available. Please login first.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentIdToken}`,
+                    }
+                });
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error("Get me error:", error);
+                apiResponse.textContent = `Get me error: ${error.message}`;
+            }
+        });
+
+        // Protected Route
+        btnProtected.addEventListener('click', async () => {
+            if (!currentIdToken) {
+                apiResponse.textContent = "No token available. Please login first.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/protected`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentIdToken}`,
+                    }
+                });
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error("Protected route error:", error);
+                apiResponse.textContent = `Protected route error: ${error.message}`;
+            }
+        });
+
+        // Update auth state UI
+        function updateAuthState(user) {
+            if (user) {
+                authForms.classList.add('hidden');
+                authStatus.classList.remove('hidden');
+                tokenContainer.classList.remove('hidden');
+                userEmail.textContent = user.email;
+                
+                // Display the token
+                user.getIdToken().then(token => {
+                    currentIdToken = token;
+                    idTokenEl.textContent = token;
+                });
+            } else {
+                authForms.classList.remove('hidden');
+                authStatus.classList.add('hidden');
+                tokenContainer.classList.add('hidden');
+                userEmail.textContent = '';
+                idTokenEl.textContent = '';
+            }
+        }
+
+        // Listen for auth state changes
+        onAuthStateChanged(auth, (user) => {
+            updateAuthState(user);
+        });
+    </script>
+</body>
+</html> 

@@ -27,7 +27,11 @@ public class HomeFragment extends Fragment {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
+<<<<<<< HEAD
         final TextView textView = binding.appTitle;
+=======
+        final TextView textView = binding.textHomeTitle;
+>>>>>>> 513d239e (add login form, sign up form, authentication backend, model dectection, footer)
         homeViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
 
         return root;

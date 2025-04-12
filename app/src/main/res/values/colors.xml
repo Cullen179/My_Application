@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Sign In Screen Colors -->
+    <color name="dark_background">#1C1E2D</color>
+    <color name="text_light_gray">#B5B5C9</color>
+    <color name="text_hint">#6A6A6A</color>
+    <color name="primary_blue">#2C6BED</color>
 </resources>
