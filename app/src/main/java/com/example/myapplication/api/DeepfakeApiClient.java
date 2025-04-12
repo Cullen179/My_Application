@@ -26,8 +26,7 @@ import java.util.Map;
 
 public class DeepfakeApiClient {
     private static final String TAG = "DeepfakeApiClient";
-    private static final String BASE_URL = "http://127.0.0.1:8000"; // For emulator to access localhost
-    // private static final String BASE_URL = "http://10.0.2.2:8000"; // For emulator to access localhost
+    private static final String BASE_URL = "http://10.0.2.2:8000"; // For emulator to access localhost
     private static final int DEFAULT_TIMEOUT = 60000; // 60 seconds for image upload
 
     private final RequestQueue requestQueue;
@@ -40,8 +39,17 @@ public class DeepfakeApiClient {
 
     public void detectDeepfake(Uri imageUri, final DeepfakeDetectionCallback callback) {
         try {
+            // Log the start of the process
+            Log.d(TAG, "Starting deepfake detection for image: " + imageUri.toString());
+
             // Prepare image data for upload
             InputStream inputStream = context.getContentResolver().openInputStream(imageUri);
+            if (inputStream == null) {
+                Log.e(TAG, "Failed to open input stream for image URI");
+                callback.onError("Failed to read image file");
+                return;
+            }
+
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
             int length;
@@ -51,16 +59,24 @@ public class DeepfakeApiClient {
             final byte[] imageData = byteArrayOutputStream.toByteArray();
             inputStream.close();
 
+            if (imageData.length == 0) {
+                Log.e(TAG, "Image data is empty");
+                callback.onError("Image data is empty");
+                return;
+            }
+
+            Log.d(TAG, "Image data prepared, size: " + imageData.length + " bytes");
+
             // Create a custom volley request to upload the image
             VolleyMultipartRequest multipartRequest = new VolleyMultipartRequest(
                     Request.Method.POST,
-                    BASE_URL + "/deepfake/detect",
+                    BASE_URL + "/api/v1/deepfake/detect",
                     new Response.Listener<NetworkResponse>() {
                         @Override
                         public void onResponse(NetworkResponse response) {
-                            // Parse response
-                            String responseStr = new String(response.data);
                             try {
+                                String responseStr = new String(response.data);
+                                Log.d(TAG, "Received response: " + responseStr);
                                 JSONObject jsonResponse = new JSONObject(responseStr);
                                 callback.onSuccess(jsonResponse);
                             } catch (JSONException e) {
@@ -72,9 +88,15 @@ public class DeepfakeApiClient {
                     new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
-                            Log.e(TAG, "Error uploading image: " + error.getMessage());
-                            callback.onError("Error uploading image: " + 
-                                    (error.getMessage() != null ? error.getMessage() : "Unknown error"));
+                            String errorMessage = "Unknown error";
+                            if (error.networkResponse != null) {
+                                errorMessage = "HTTP " + error.networkResponse.statusCode + ": " + 
+                                    new String(error.networkResponse.data);
+                            } else if (error.getMessage() != null) {
+                                errorMessage = error.getMessage();
+                            }
+                            Log.e(TAG, "Error uploading image: " + errorMessage);
+                            callback.onError("Error uploading image: " + errorMessage);
                         }
                     }
             ) {
@@ -95,10 +117,14 @@ public class DeepfakeApiClient {
 
             // Add the request to the queue
             requestQueue.add(multipartRequest);
+            Log.d(TAG, "Request added to queue");
 
         } catch (IOException e) {
-            Log.e(TAG, "Error reading image data: " + e.getMessage());
+            Log.e(TAG, "Error reading image data: " + e.getMessage(), e);
             callback.onError("Error reading image data: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "Unexpected error: " + e.getMessage(), e);
+            callback.onError("Unexpected error: " + e.getMessage());
         }
     }
 

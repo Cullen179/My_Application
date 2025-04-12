@@ -18,6 +18,7 @@ import android.media.MediaScannerConnection;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -27,9 +28,17 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 
+import com.example.myapplication.api.DeepfakeApiClient;
+import com.example.myapplication.data.model.DeepfakeResponse;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,6 +46,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.nio.ByteBuffer;
+
+import retrofit2.Call;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 
 public class ScreenRecordingService extends Service {
     public static final int SCREEN_RECORD_REQUEST_CODE = 1001;
@@ -60,6 +77,8 @@ public class ScreenRecordingService extends Service {
     private Handler mHandler;
     private Runnable mScreenshotRunnable;
     private ImageReader mImageReader;
+    private boolean mImageReaderValid = false;  // Add flag to track ImageReader validity
+    private DeepfakeApiClient apiClient;  // Add API client
 
     // Add MediaProjection callback
     private final MediaProjection.Callback mMediaProjectionCallback = new MediaProjection.Callback() {
@@ -77,6 +96,7 @@ public class ScreenRecordingService extends Service {
         super.onCreate();
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mHandler = new Handler(Looper.getMainLooper());
+        apiClient = new DeepfakeApiClient(this);  // Pass the Service context
 
         DisplayMetrics metrics = new DisplayMetrics();
         WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -155,6 +175,7 @@ public class ScreenRecordingService extends Service {
         // Create ImageReader
         mImageReader = ImageReader.newInstance(mScreenWidth, mScreenHeight, 
                 PixelFormat.RGBA_8888, 2);
+        mImageReaderValid = true;  // Set flag when ImageReader is created
 
         // Create virtual display
         mVirtualDisplay = mMediaProjection.createVirtualDisplay(
@@ -174,7 +195,7 @@ public class ScreenRecordingService extends Service {
         mScreenshotRunnable = new Runnable() {
             @Override
             public void run() {
-                if (mIsCapturing) {
+                if (mIsCapturing && mImageReaderValid) {  // Check both flags
                     takeScreenshot();
                     mHandler.postDelayed(this, SCREENSHOT_INTERVAL);
                 }
@@ -186,87 +207,178 @@ public class ScreenRecordingService extends Service {
     }
 
     private void takeScreenshot() {
-        try {
-            Image image = mImageReader.acquireLatestImage();
-            if (image == null) {
-                Log.e(TAG, "Failed to acquire image");
-                return;
-            }
-
-            Image.Plane[] planes = image.getPlanes();
-            ByteBuffer buffer = planes[0].getBuffer();
-            int pixelStride = planes[0].getPixelStride();
-            int rowStride = planes[0].getRowStride();
-            int rowPadding = rowStride - pixelStride * mScreenWidth;
-
-            // Create bitmap
-            Bitmap bitmap = Bitmap.createBitmap(mScreenWidth + rowPadding / pixelStride, 
-                    mScreenHeight, Bitmap.Config.ARGB_8888);
-            bitmap.copyPixelsFromBuffer(buffer);
-            image.close();
-
-            // Crop to actual screen size
-            Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, mScreenWidth, mScreenHeight);
-            bitmap.recycle();
-
-            // Save the bitmap to a file
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-            String outputPath = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_PICTURES).getPath() + 
-                    File.separator + "CallScreenshots" + 
-                    File.separator + "SCR_" + timestamp + ".jpg";
-            
-            FileOutputStream fos = new FileOutputStream(outputPath);
-            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-            fos.close();
-            croppedBitmap.recycle();
-            
-            // Notify that the screenshot was saved
-            MediaScannerConnection.scanFile(
-                    this,
-                    new String[]{outputPath},
-                    null,
-                    (path, uri) -> {
-                        Log.i(TAG, "Screenshot saved: " + path);
-                    }
-            );
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to take screenshot", e);
-        }
-    }
-
-    private void stopCapturing() {
-        if (!mIsCapturing) {
+        if (!mIsCapturing || !mImageReaderValid || mImageReader == null) {  // Check all conditions
             return;
         }
 
-        mIsCapturing = false;
+        try {
+            // Acquire the latest image
+            Image image = mImageReader.acquireLatestImage();
+            if (image == null) {
+                return;
+            }
 
-        if (mHandler != null && mScreenshotRunnable != null) {
-            mHandler.removeCallbacks(mScreenshotRunnable);
+            try {
+                Image.Plane[] planes = image.getPlanes();
+                if (planes.length > 0) {
+                    ByteBuffer buffer = planes[0].getBuffer();
+                    int pixelStride = planes[0].getPixelStride();
+                    int rowStride = planes[0].getRowStride();
+                    int rowPadding = rowStride - pixelStride * mScreenWidth;
+
+                    // Create a bitmap
+                    Bitmap bitmap = Bitmap.createBitmap(
+                            mScreenWidth + rowPadding / pixelStride,
+                            mScreenHeight,
+                            Bitmap.Config.ARGB_8888
+                    );
+                    bitmap.copyPixelsFromBuffer(buffer);
+
+                    // Crop to actual screen size
+                    Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, mScreenWidth, mScreenHeight);
+                    bitmap.recycle();
+
+                    // Save the bitmap to a file
+                    String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+                    String outputPath = Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_PICTURES).getPath() + 
+                            File.separator + "CallScreenshots" + 
+                            File.separator + "SCR_" + timestamp + ".jpg";
+                    
+                    File outputDir = new File(Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_PICTURES), "CallScreenshots");
+                    if (!outputDir.exists()) {
+                        outputDir.mkdirs();
+                    }
+                    
+                    FileOutputStream fos = new FileOutputStream(outputPath);
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                    fos.close();
+
+                    // Create a copy of the bitmap for deepfake detection
+                    Bitmap deepfakeBitmap = croppedBitmap.copy(croppedBitmap.getConfig(), true);
+                    croppedBitmap.recycle();
+
+                    // Upload image for deepfake detection
+                    uploadImageForDeepfakeDetection(deepfakeBitmap);
+
+                    // Notify that the screenshot was saved
+                    MediaScannerConnection.scanFile(
+                            this,
+                            new String[]{outputPath},
+                            null,
+                            (path, uri) -> {
+                                Log.i(TAG, "Screenshot saved: " + path);
+                            }
+                    );
+                }
+            } finally {
+                // Always close the image
+                image.close();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error taking screenshot", e);
+            // If we get an error, invalidate the ImageReader
+            mImageReaderValid = false;
         }
-
-        releaseResources();
-        stopForeground(true);
-        stopSelf();
     }
 
-    private void releaseResources() {
-        if (mVirtualDisplay != null) {
-            mVirtualDisplay.release();
-            mVirtualDisplay = null;
-        }
+    private void uploadImageForDeepfakeDetection(Bitmap bitmap) {
+        new Thread(() -> {
+            try {
+                // Save bitmap to a temporary file
+                File tempFile = new File(getCacheDir(), "temp_screenshot.jpg");
+                FileOutputStream fos = new FileOutputStream(tempFile);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                fos.close();
 
-        if (mImageReader != null) {
-            mImageReader.close();
-            mImageReader = null;
-        }
+                // Create Uri from the temporary file
+                Uri imageUri = Uri.fromFile(tempFile);
 
-        if (mMediaProjection != null) {
-            mMediaProjection.unregisterCallback(mMediaProjectionCallback);
-            mMediaProjection.stop();
-            mMediaProjection = null;
+                // Create callback for deepfake detection
+                DeepfakeApiClient.DeepfakeDetectionCallback callback = new DeepfakeApiClient.DeepfakeDetectionCallback() {
+                    @Override
+                    public void onSuccess(JSONObject response) {
+                        Intent intent = new Intent(ScreenRecordingService.this, FloatingService.class);
+                        JSONObject confidences = null;
+                        String predictedClass = null;
+                        try {
+                            // Extract response data
+                            confidences = response.getJSONObject("confidences");
+                            predictedClass = response.getString("predicted_class");
+                            String faceWithMaskBase64 = response.optString("face_with_mask_base64", null);
+
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing response: " + e.getMessage());
+                        }
+                        intent.putExtra("fakePercentage", (int) (confidences.optDouble("fake", 0) * 100));
+                        intent.putExtra("realPercentage", (int) (confidences.optDouble("real", 0) * 100));
+                        intent.putExtra("predictedClass", predictedClass.substring(0, 1).toUpperCase() + predictedClass.substring(1));
+                        startService(intent);
+
+                        // Clean up
+                        tempFile.delete();
+                        bitmap.recycle();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.e(TAG, "Error uploading image for deepfake detection: " + error);
+                        // Clean up
+                        tempFile.delete();
+                        bitmap.recycle();
+                    }
+                };
+
+                // Make API call using DeepfakeApiClient
+                apiClient.detectDeepfake(imageUri, callback);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error uploading image for deepfake detection", e);
+                // Clean up in case of error
+                bitmap.recycle();
+            }
+        }).start();
+    }
+
+    private void stopCapturing() {
+        if (mIsCapturing) {
+            mIsCapturing = false;
+            mImageReaderValid = false;  // Invalidate ImageReader first
+            mHandler.removeCallbacks(mScreenshotRunnable);
+            
+            // Clean up ImageReader
+            if (mImageReader != null) {
+                try {
+                    mImageReader.close();
+                } catch (Exception e) {
+                    Log.e(TAG, "Error closing ImageReader", e);
+                }
+                mImageReader = null;
+            }
+            
+            // Clean up virtual display
+            if (mVirtualDisplay != null) {
+                try {
+                    mVirtualDisplay.release();
+                } catch (Exception e) {
+                    Log.e(TAG, "Error releasing VirtualDisplay", e);
+                }
+                mVirtualDisplay = null;
+            }
+            
+            // Clean up media projection
+            if (mMediaProjection != null) {
+                try {
+                    mMediaProjection.stop();
+                } catch (Exception e) {
+                    Log.e(TAG, "Error stopping MediaProjection", e);
+                }
+                mMediaProjection = null;
+            }
+            
+            stopForeground(true);
+            stopSelf();
         }
     }
 

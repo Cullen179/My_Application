@@ -18,6 +18,8 @@ import androidx.core.app.NotificationCompat;
 
 import com.example.myapplication.R;
 
+import java.util.Locale;
+
 public class FloatingService extends android.app.Service {
 
     private WindowManager windowManager;
@@ -36,9 +38,16 @@ public class FloatingService extends android.app.Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && intent.hasExtra("CALL_STATE")) {
-            String message = intent.getStringExtra("CALL_STATE");
-            handleCallStateChange(message);
+        if (intent != null) {
+            String action = intent.getAction();
+            if ("UPDATE_MESSAGE".equals(action)) {
+                float fakePercentage = intent.getFloatExtra("fakePercentage", 0f);
+                float realPercentage = intent.getFloatExtra("realPercentage", 0f);
+                updateDeepfakeDetectionMessage(fakePercentage, realPercentage);
+            } else if (intent.hasExtra("CALL_STATE")) {
+                String message = intent.getStringExtra("CALL_STATE");
+                handleCallStateChange(message);
+            }
         }
         return START_STICKY;
     }
@@ -128,10 +137,23 @@ public class FloatingService extends android.app.Service {
         }
     }
 
+    private void updateDeepfakeDetectionMessage(float fakePercentage, float realPercentage) {
+        String message = String.format(Locale.getDefault(), 
+            "Deepfake Detection:\nFake: %.1f%%\nReal: %.1f%%", 
+            fakePercentage, realPercentage);
+        showCallMessage(message);
+    }
+
     private void showCallMessage(String message) {
         if (callMessage != null) {
             callMessage.setText(message);
             callMessage.setVisibility(View.VISIBLE);
+            // Auto-hide the message after 5 seconds
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (callMessage != null) {
+                    callMessage.setVisibility(View.GONE);
+                }
+            }, 5000);
         }
     }
 
